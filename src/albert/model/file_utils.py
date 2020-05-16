@@ -149,6 +149,7 @@ def cached_path(url_or_filename, cache_dir=None, force_download=False, proxies=N
         return url_or_filename
     elif parsed.scheme == '':
         # File, but it doesn't exist.
+        print(os.getcwd())
         raise EnvironmentError("file {} not found".format(url_or_filename))
     else:
         # Something unknown

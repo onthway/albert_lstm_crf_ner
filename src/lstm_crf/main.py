@@ -1,27 +1,32 @@
 # -*- coding:utf-8 -*-
 
-import yaml
 import sys
-import torch
-import torch.optim as optim
-from lstm_crf.data_format import DataFormat
-from lstm_crf.model import BiLSTMCRF
-from lstm_crf.utils import f1_score, get_tags, format_result
-from configs.base import config
+import os
+sys.path.append(os.path.abspath('../'))
 from albert.model.tokenization_bert import BertTokenizer
+from albert.configs.base import config
+from lstm_crf.utils import f1_score, get_tags, format_result
+from lstm_crf.model import BiLSTMCRF
+from lstm_crf.data_format import DataFormat
+import torch.optim as optim
+import torch
+import yaml
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 class NER(object):
-    
+
     def __init__(self, exec_type="train"):
         self.load_config()
         self.__init_model(exec_type)
 
     def __init_model(self, exec_type):
         if exec_type == "train":
-            self.train_data = DataFormat(batch_size=self.batch_size, max_length=self.max_legnth, data_type='train')
-            self.dev_data = DataFormat(batch_size=16, max_length=self.max_legnth, data_type="dev")
+            self.train_data = DataFormat(
+                batch_size=self.batch_size, max_length=self.max_legnth, data_type='train')
+            self.dev_data = DataFormat(
+                batch_size=16, max_length=self.max_legnth, data_type="dev")
 
             self.model = BiLSTMCRF(
                 tag_map=self.train_data.tag_map,
@@ -33,6 +38,8 @@ class NER(object):
             self.restore_model()
 
         elif exec_type == "predict":
+            self.test_data = DataFormat(
+                batch_size=16, max_length=self.max_legnth, data_type="test")
             self.model = BiLSTMCRF(
                 dropout=self.dropout,
                 embedding_dim=self.embedding_size,
@@ -52,8 +59,8 @@ class NER(object):
                 "embedding_size": 768,
                 "hidden_size": 128,
                 "batch_size": 64,
-                "max_length":128,
-                "dropout":0.5,
+                "max_length": 128,
+                "dropout": 0.5,
                 "model_path": "models/",
                 "tasg": ["ORG", "PER", "LOC", 'T']
             }
@@ -69,7 +76,8 @@ class NER(object):
 
     def restore_model(self):
         try:
-            self.model.load_state_dict(torch.load(self.model_path + "params.pkl"))
+            self.model.load_state_dict(
+                torch.load(self.model_path + "params.pkl"))
             print("self.model:{}".format(self.model))
             print("model restore success!")
         except Exception as error:
@@ -77,8 +85,9 @@ class NER(object):
 
     def train(self):
         self.model.to(DEVICE)
-        #weight decay是放在正则项（regularization）前面的一个系数，正则项一般指示模型的复杂度，所以weight decay的作用是调节模型复杂度对损失函数的影响，若weight decay很大，则复杂的模型损失函数的值也就大。
-        optimizer = optim.Adam(self.model.parameters(), lr = 0.001, weight_decay=0.0005)
+        # weight decay是放在正则项（regularization）前面的一个系数，正则项一般指示模型的复杂度，所以weight decay的作用是调节模型复杂度对损失函数的影响，若weight decay很大，则复杂的模型损失函数的值也就大。
+        optimizer = optim.Adam(self.model.parameters(),
+                               lr=0.001, weight_decay=0.0005)
         '''
         当网络的评价指标不在提升的时候，可以通过降低网络的学习率来提高网络性能:
         optimer指的是网络的优化器
@@ -103,7 +112,8 @@ class NER(object):
                 b_input_ids, b_input_mask, b_labels, b_out_masks = batch
 
                 bert_encode = self.model(b_input_ids, b_input_mask)
-                loss = self.model.loss_fn(bert_encode=bert_encode, tags=b_labels, output_mask=b_out_masks)
+                loss = self.model.loss_fn(
+                    bert_encode=bert_encode, tags=b_labels, output_mask=b_out_masks)
                 progress = ("█" * int(index * 25 / total_size)).ljust(25)
                 print("""epoch [{}] |{}| {}/{}\n\tloss {:.2f}""".format(
                     epoch, progress, index, total_size, loss.item()))
@@ -140,7 +150,8 @@ class NER(object):
                 batch = tuple(t.to(DEVICE) for t in batch)
                 input_ids, input_mask, label_ids, output_mask = batch
                 bert_encode = self.model(input_ids, input_mask)
-                eval_los = self.model.loss_fn(bert_encode=bert_encode, tags=label_ids, output_mask=output_mask)
+                eval_los = self.model.loss_fn(
+                    bert_encode=bert_encode, tags=label_ids, output_mask=output_mask)
                 eval_loss = eval_los + eval_loss
                 count += 1
                 predicts = self.model.predict(bert_encode, output_mask)
@@ -186,16 +197,24 @@ class NER(object):
         self.model.to(DEVICE)
         VOCAB = config['albert_vocab_path']  # your path for model and vocab
         tokenizer = BertTokenizer.from_pretrained(VOCAB)
+        i = 0
         while True:
             with torch.no_grad():
-                input_str = input("请输入文本: ")
-                input_ids = tokenizer.encode(input_str,add_special_tokens=True)  # add_spicial_tokens=True，为自动为sentence加上[CLS]和[SEP]
+                input_str = input("回车调入测试句子:")
+                input_str = self.test_data.test_dataloader[i]
+                print(input_str)
+                i += 1
+                # add_spicial_tokens=True，为自动为sentence加上[CLS]和[SEP]
+                input_ids = tokenizer.encode(
+                    input_str, add_special_tokens=True)
                 input_mask = [1] * len(input_ids)
-                output_mask = [0] + [1] * (len(input_ids) - 2) + [0]  # 用于屏蔽特殊token
+                output_mask = [0] + [1] * \
+                    (len(input_ids) - 2) + [0]  # 用于屏蔽特殊token
 
                 input_ids_tensor = torch.LongTensor(input_ids).reshape(1, -1)
                 input_mask_tensor = torch.LongTensor(input_mask).reshape(1, -1)
-                output_mask_tensor = torch.LongTensor(output_mask).reshape(1, -1)
+                output_mask_tensor = torch.LongTensor(
+                    output_mask).reshape(1, -1)
                 input_ids_tensor = input_ids_tensor.to(DEVICE)
                 input_mask_tensor = input_mask_tensor.to(DEVICE)
                 output_mask_tensor = output_mask_tensor.to(DEVICE)
@@ -209,6 +228,7 @@ class NER(object):
                     tags = get_tags(predicts[0], tag, self.model.tag_map)
                     entities += format_result(tags, input_str, tag)
                 print(entities)
+
 
 if __name__ == "__main__":
     if sys.argv[1] == "train":
