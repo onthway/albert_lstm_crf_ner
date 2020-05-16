@@ -15,9 +15,9 @@
 3.没有对albert进行fine-tune。
 
 ### train
-setp 1: 利用albert/tfmodel_2_pymodel.py
+~~setp 1: 利用albert/tfmodel_2_pymodel.py~~
 
-1.将tensorflow预训练模型转化为pytorch可用模型。
+~~1.将tensorflow预训练模型转化为pytorch可用模型。~~
 
 2.本程序使用[albert_base_zh(小模型体验版)](https://storage.googleapis.com/albert_zh/albert_base_zh.zip), 参数量12M, 层数12，大小为40M。
 
@@ -42,7 +42,7 @@ setp 2: 部分参数设置 models/config.yml
 step 3: train
 
     python main.py train
-	训练数据来自人民日报的标注数据
+	训练数据来自消防领域自有的标注数据
 
 ### evaluate
 
@@ -67,7 +67,7 @@ step 3: train
 ### predict
 
     python main.py predict
-    input text:“刘老根大舞台”被文化部、国家旅游局联合评为首批“国家文化旅游重点项目”
+    ~~input text:“刘老根大舞台”被文化部、国家旅游局联合评为首批“国家文化旅游重点项目”~~
 
 ### note
 在src/lstm_crf的model.py中
